@@ -34,7 +34,7 @@ export default function LoginScreen() {
           setRememberMe(true);
         }
       } catch (error) {
-        console.log('Error al cargar credenciales guardadas', error);
+        console.log('Error al cargar credenciales guardadas: ', error);
       }
     };
 
