@@ -1,3 +1,17 @@
+/**
+ * Pantalla de Generación de Reportes
+ * 
+ * Permite al usuario generar reportes contables de sus gastos con:
+ * - Selección de tipo de reporte (básico/deducibles)
+ * - Filtrado por rango de fechas
+ * - Filtrado por categorías específicas
+ * - Vista previa del reporte con estadísticas
+ * - Exportación a PDF y Excel (en desarrollo)
+ * - Resumen de totales, promedios y gastos por categoría
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,28 +26,41 @@ import { useExpense } from './ExpenseContext';
 import * as Sharing from 'expo-sharing';
 
 export default function ReportScreen({ navigation }) {
+  // Obtener datos del contexto
   const { receipts, getReceiptsByDateRange } = useExpense();
+  
+  // === Estados del formulario ===
   const [reportType, setReportType] = useState('basic');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedCategories, setSelectedCategories] = useState(['Todas']);
   const [reportPreview, setReportPreview] = useState(null);
 
+  /**
+   * Categorías disponibles para filtrar
+   */
   const categories = ['Todas', 'Alimentos', 'Transporte', 'Equipo de oficina', 'Servicios', 'Otros'];
 
+  /**
+   * Recibos filtrados según criterios seleccionados
+   * 
+   * Aplica filtros de:
+   * 1. Rango de fechas
+   * 2. Categorías seleccionadas
+   */
   const filteredReceipts = receipts.filter(receipt => {
-    // Date range filter
+    // Filtro 1: Rango de fechas
     if (startDate && endDate) {
       const receiptDate = new Date(receipt.date);
       const start = new Date(startDate);
       const end = new Date(endDate);
-      end.setHours(23, 59, 59);
+      end.setHours(23, 59, 59); // Incluir todo el día final
       if (receiptDate < start || receiptDate > end) {
         return false;
       }
     }
 
-    // Category filter
+    // Filtro 2: Categorías
     if (!selectedCategories.includes('Todas') && !selectedCategories.includes(receipt.category)) {
       return false;
     }
@@ -41,18 +68,31 @@ export default function ReportScreen({ navigation }) {
     return true;
   });
 
+  /**
+   * Calcular datos del reporte
+   * 
+   * Procesa los recibos filtrados para generar estadísticas:
+   * - Total gastado
+   * - Número de entradas
+   * - Depósitos (si aplica)
+   * - Promedio por recibo
+   * - Gastos desglosados por categoría con porcentajes
+   * 
+   * @returns {Object} Objeto con todas las estadísticas calculadas
+   */
   const calculateReportData = () => {
     const totalSpent = filteredReceipts.reduce((sum, r) => sum + r.amount, 0);
     const entries = filteredReceipts.length;
     
-    // Calculate deposits (positive amounts or separate deposits field)
+    // Calcular depósitos (actualmente no hay recibos tipo "Deposit")
+    // Esta funcionalidad está preparada para futura implementación
     const deposits = filteredReceipts
       .filter(r => r.amount > 0 && (r.type === 'Deposit' || false))
       .reduce((sum, r) => sum + r.amount, 0);
     
     const average = entries > 0 ? totalSpent / entries : 0;
 
-    // Calculate expenses by category
+    // Calcular totales por categoría
     const categoryTotals = {};
     filteredReceipts.forEach(receipt => {
       const cat = receipt.category || 'Otros';
@@ -62,13 +102,14 @@ export default function ReportScreen({ navigation }) {
       categoryTotals[cat] += receipt.amount;
     });
 
+    // Convertir a array con porcentajes y ordenar por monto
     const expensesByCategory = Object.entries(categoryTotals)
       .map(([category, amount]) => ({
         category,
         amount,
         percentage: totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0
       }))
-      .sort((a, b) => b.amount - a.amount);
+      .sort((a, b) => b.amount - a.amount); // Ordenar de mayor a menor
 
     return {
       totalSpent,
@@ -81,6 +122,12 @@ export default function ReportScreen({ navigation }) {
     };
   };
 
+  /**
+   * Generar el reporte
+   * 
+   * Valida que se haya seleccionado un rango de fechas,
+   * calcula los datos y actualiza la vista previa.
+   */
   const generateReport = () => {
     if (!startDate || !endDate) {
       Alert.alert('Error', 'Por favor seleccione un rango de fechas');
@@ -91,6 +138,9 @@ export default function ReportScreen({ navigation }) {
     setReportPreview(reportData);
   };
 
+  /**
+   * Formatear fecha a formato legible
+   */
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -101,6 +151,9 @@ export default function ReportScreen({ navigation }) {
     });
   };
 
+  /**
+   * Formatear rango de fechas para mostrar
+   */
   const formatDateRange = () => {
     if (!startDate || !endDate) return '';
     const start = new Date(startDate);
@@ -110,6 +163,10 @@ export default function ReportScreen({ navigation }) {
     return `${startFormatted} - ${endFormatted}`;
   };
 
+  /**
+   * Exportar reporte a PDF
+   * TODO: Implementar exportación real a PDF
+   */
   const handleExportPDF = async () => {
     Alert.alert(
       'Exportar PDF',
@@ -118,6 +175,10 @@ export default function ReportScreen({ navigation }) {
     );
   };
 
+  /**
+   * Exportar reporte a Excel
+   * TODO: Implementar exportación real a Excel
+   */
   const handleExportExcel = async () => {
     Alert.alert(
       'Exportar Excel',
@@ -126,6 +187,14 @@ export default function ReportScreen({ navigation }) {
     );
   };
 
+  /**
+   * Toggle de selección de categoría
+   * 
+   * Maneja la lógica de selección múltiple de categorías:
+   * - Si se selecciona "Todas", deselecciona las demás
+   * - Si se selecciona una categoría específica, quita "Todas"
+   * - Si se deselecciona todo, vuelve a "Todas"
+   */
   const toggleCategory = (category) => {
     if (category === 'Todas') {
       setSelectedCategories(['Todas']);
@@ -141,6 +210,9 @@ export default function ReportScreen({ navigation }) {
     }
   };
 
+  /**
+   * Obtener color asociado a una categoría
+   */
   const getCategoryColor = (category) => {
     const colors = {
       'Alimentos': '#6B7FED',
@@ -154,7 +226,7 @@ export default function ReportScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
+      {/* === Header === */}
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
@@ -167,11 +239,12 @@ export default function ReportScreen({ navigation }) {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Report Type Selection */}
+      {/* === Sección: Tipo de Reporte === */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Categoria</Text>
         <Text style={styles.sectionSubtitle}>Elige el tipo de reporte a generar</Text>
         
+        {/* Opción 1: Reporte Básico (activo) */}
         <TouchableOpacity
           style={[styles.reportTypeCard, reportType === 'basic' && styles.reportTypeCardSelected]}
           onPress={() => setReportType('basic')}
@@ -183,6 +256,7 @@ export default function ReportScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
+        {/* Opción 2: Deducibles (próximamente) */}
         <TouchableOpacity
           style={[styles.reportTypeCard, styles.reportTypeCardDisabled]}
           disabled={true}
@@ -195,12 +269,13 @@ export default function ReportScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Date Range */}
+      {/* === Sección: Rango de Fechas === */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Rango de fechas</Text>
         <Text style={styles.sectionSubtitle}>Selecciona el periodo para tu reporte</Text>
         
         <View style={styles.dateRangeContainer}>
+          {/* TODO: Implementar selector de fecha real */}
           <TouchableOpacity style={styles.dateInput}>
             <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
             <Text style={[styles.dateInputText, !startDate && styles.placeholderText]}>
@@ -217,7 +292,7 @@ export default function ReportScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Categories Filter */}
+      {/* === Sección: Filtro de Categorías === */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Categorias</Text>
         <Text style={styles.sectionSubtitle}>Filtrar por categorías</Text>
@@ -229,6 +304,7 @@ export default function ReportScreen({ navigation }) {
               style={styles.categoryCheckbox}
               onPress={() => toggleCategory(category)}
             >
+              {/* Checkbox personalizado */}
               <View style={[
                 styles.checkbox,
                 selectedCategories.includes(category) && styles.checkboxChecked
@@ -243,17 +319,18 @@ export default function ReportScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Generate Button */}
+      {/* === Botón Generar Reporte === */}
       <TouchableOpacity style={styles.generateButton} onPress={generateReport}>
         <Ionicons name="document-text-outline" size={20} color="#fff" />
         <Text style={styles.generateButtonText}>Generar Reporte</Text>
       </TouchableOpacity>
 
-      {/* Preview Section */}
+      {/* === Sección: Vista Previa === */}
       <View style={styles.previewSection}>
         <Text style={styles.previewTitle}>Vista previa</Text>
         
         {!reportPreview ? (
+          // Estado vacío: antes de generar reporte
           <View style={styles.emptyPreview}>
             <Text style={styles.emptyPreviewText}>XXXXXXXXXXXXXXXXXX</Text>
             <Ionicons name="document-outline" size={64} color="#D1D5DB" />
@@ -263,7 +340,9 @@ export default function ReportScreen({ navigation }) {
             </Text>
           </View>
         ) : (
+          // Vista previa del reporte generado
           <View style={styles.previewContent}>
+            {/* Header del reporte con botones de exportación */}
             <View style={styles.previewHeader}>
               <View>
                 <Text style={styles.previewReportTitle}>Vista previa</Text>
@@ -283,6 +362,7 @@ export default function ReportScreen({ navigation }) {
               </View>
             </View>
 
+            {/* Título y metadata del reporte */}
             <Text style={styles.reportMainTitle}>Informe contable básico</Text>
             <Text style={styles.reportPeriod}>
               Periodo: {formatDate(reportPreview.startDate)} - {formatDate(reportPreview.endDate)}
@@ -295,7 +375,7 @@ export default function ReportScreen({ navigation }) {
               })}
             </Text>
 
-            {/* Summary Cards */}
+            {/* Tarjetas de resumen */}
             <View style={styles.summaryCards}>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>Total Gastado</Text>
@@ -321,7 +401,7 @@ export default function ReportScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Expenses by Category */}
+            {/* Desglose por categoría */}
             <View style={styles.expensesByCategory}>
               <Text style={styles.expensesByCategoryTitle}>Gastos por categoría</Text>
               {reportPreview.expensesByCategory.map((item, index) => (
@@ -353,6 +433,9 @@ export default function ReportScreen({ navigation }) {
   );
 }
 
+/**
+ * Estilos del componente ReportScreen
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,

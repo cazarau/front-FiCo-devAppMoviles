@@ -1,3 +1,21 @@
+/**
+ * Pantalla de Escaneo de Tickets
+ * 
+ * Permite al usuario escanear tickets/recibos usando la cámara del dispositivo.
+ * Características:
+ * - Acceso y control de la cámara del dispositivo
+ * - Solicitud y manejo de permisos de cámara
+ * - Captura de fotos de tickets
+ * - Frame de guía para posicionar el ticket
+ * - Controles de flash y galería (preparados para futura implementación)
+ * - Alternancia entre cámara frontal y trasera
+ * 
+ * NOTA: Actualmente la funcionalidad OCR (reconocimiento de texto) no está
+ * implementada. Las fotos capturadas redirigen a entrada manual.
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,26 +29,46 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ScanTicketScreen({ navigation }) {
+  // Hook de permisos de cámara de Expo
   const [permission, requestPermission] = useCameraPermissions();
+  
+  // Estados del componente
   const [cameraRef, setCameraRef] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [facing, setFacing] = useState('back');
+  const [facing, setFacing] = useState('back'); // 'back' o 'front'
 
+  /**
+   * Efecto: Solicitar permisos de cámara al montar el componente
+   * 
+   * Si los permisos no están otorgados pero se pueden solicitar,
+   * automáticamente abre el diálogo de permisos.
+   */
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
     }
   }, [permission]);
 
+  /**
+   * Capturar foto del ticket
+   * 
+   * Toma una foto con la cámara y muestra un diálogo informativo.
+   * En producción, aquí se procesaría la imagen con OCR para extraer
+   * texto y datos del ticket.
+   * 
+   * TODO: Implementar procesamiento OCR real
+   */
   const takePicture = async () => {
     if (cameraRef && !isProcessing) {
       setIsProcessing(true);
       try {
+        // Capturar foto con configuración de calidad
         const photo = await cameraRef.takePictureAsync({
-          quality: 0.8,
-          base64: true,
+          quality: 0.8, // 0-1, donde 1 es máxima calidad
+          base64: true, // Incluir representación base64 para procesamiento
         });
 
+        // Informar al usuario sobre la captura
         Alert.alert(
           'Ticket Capturado',
           'La imagen se ha capturado correctamente. En producción, aquí se procesaría el texto del ticket usando OCR.',
@@ -53,6 +91,8 @@ export default function ScanTicketScreen({ navigation }) {
     }
   };
 
+  // === Pantalla de Carga ===
+  // Mientras se verifica el estado de permisos
   if (!permission) {
     return (
       <View style={styles.loadingContainer}>
@@ -61,6 +101,8 @@ export default function ScanTicketScreen({ navigation }) {
     );
   }
 
+  // === Pantalla de Permisos Denegados ===
+  // Cuando el usuario no ha otorgado permisos de cámara
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
@@ -71,12 +113,14 @@ export default function ScanTicketScreen({ navigation }) {
         <Text style={styles.noPermissionSubtext}>
           Por favor, habilita los permisos de cámara en la configuración de tu dispositivo
         </Text>
+        {/* Botón para reintentar solicitud de permisos */}
         <TouchableOpacity 
           style={styles.permissionButton}
           onPress={requestPermission}
         >
           <Text style={styles.permissionButtonText}>Solicitar Permiso</Text>
         </TouchableOpacity>
+        {/* Botón para volver */}
         <TouchableOpacity 
           style={styles.backButtonAlt}
           onPress={() => navigation.goBack()}
@@ -87,18 +131,19 @@ export default function ScanTicketScreen({ navigation }) {
     );
   }
 
+  // === Pantalla Principal de Escaneo ===
   return (
     <View style={styles.container}>
-      {/* Camera View - NO CHILDREN */}
+      {/* Vista de la cámara (capa de fondo) */}
       <CameraView 
         style={styles.camera} 
         ref={ref => setCameraRef(ref)}
         facing={facing}
       />
       
-      {/* Overlay - POSITIONED ABSOLUTELY OUTSIDE CAMERA */}
+      {/* Overlay con controles (capa superior) */}
       <View style={styles.overlay} pointerEvents="box-none">
-        {/* Header */}
+        {/* === Header === */}
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -111,7 +156,8 @@ export default function ScanTicketScreen({ navigation }) {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Frame Container */}
+        {/* === Frame de Guía === */}
+        {/* Indica al usuario dónde posicionar el ticket */}
         <View style={styles.frameContainer} pointerEvents="none">
           <View style={styles.frame}>
             <View style={styles.cameraIconContainer}>
@@ -126,12 +172,14 @@ export default function ScanTicketScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* Controls */}
+        {/* === Controles Inferiores === */}
         <View style={styles.controls}>
+          {/* Botón de Flash (preparado para futura implementación) */}
           <TouchableOpacity style={styles.flashButton}>
             <Ionicons name="flash-off-outline" size={24} color="#fff" />
           </TouchableOpacity>
           
+          {/* Botón de Captura (principal) */}
           <TouchableOpacity 
             style={[styles.captureButton, isProcessing && styles.captureButtonDisabled]}
             onPress={takePicture}
@@ -142,6 +190,7 @@ export default function ScanTicketScreen({ navigation }) {
             </View>
           </TouchableOpacity>
 
+          {/* Botón de Galería (preparado para futura implementación) */}
           <TouchableOpacity style={styles.galleryButton}>
             <Ionicons name="images-outline" size={24} color="#fff" />
           </TouchableOpacity>
@@ -151,11 +200,17 @@ export default function ScanTicketScreen({ navigation }) {
   );
 }
 
+/**
+ * Estilos del componente ScanTicketScreen
+ */
 const styles = StyleSheet.create({
+  // === Contenedor principal ===
   container: {
     flex: 1,
     backgroundColor: '#000',
   },
+  
+  // === Estados de carga y permisos ===
   loadingContainer: {
     flex: 1,
     backgroundColor: '#1E3A8A',
@@ -173,19 +228,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
+  
+  // === Vista de cámara ===
   camera: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFillObject, // Ocupa toda la pantalla
   },
+  
+  // === Overlay ===
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(30, 58, 138, 0.7)',
+    backgroundColor: 'rgba(30, 58, 138, 0.7)', // Tinte azul semi-transparente
   },
+  
+  // === Header ===
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40, // Safe area para iOS
   },
   backButton: {
     flexDirection: 'row',
@@ -214,6 +275,8 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 100,
   },
+  
+  // === Frame de guía ===
   frameContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -222,7 +285,7 @@ const styles = StyleSheet.create({
   },
   frame: {
     width: '100%',
-    aspectRatio: 0.7,
+    aspectRatio: 0.7, // Proporción típica de un recibo
     borderWidth: 2,
     borderColor: '#fff',
     borderStyle: 'dashed',
@@ -249,6 +312,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.9,
   },
+  
+  // === Controles ===
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,7 +338,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   captureButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.5, // Visual de deshabilitado
   },
   captureButtonInner: {
     width: 64,
@@ -289,6 +354,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  
+  // === Pantalla de permisos ===
   noPermissionText: {
     fontSize: 20,
     fontWeight: '600',

@@ -1,3 +1,16 @@
+/**
+ * Pantalla de Detalles del Recibo
+ * 
+ * Muestra información detallada de un recibo específico incluyendo:
+ * - Imagen del recibo (si existe)
+ * - Información general (tienda, monto, fecha, categoría, método de pago)
+ * - Lista de productos con cantidades y precios
+ * - Opciones para editar o eliminar el recibo
+ * - Función para compartir/descargar la imagen
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,15 +29,20 @@ import { useExpense } from './ExpenseContext';
 import * as Sharing from 'expo-sharing';
 
 export default function ReceiptDetailsScreen({ route, navigation }) {
+  // Obtener el ID del recibo desde los parámetros de navegación
   const { receiptId } = route.params;
   const { receipts, deleteReceipt, updateReceipt } = useExpense();
   const [receipt, setReceipt] = useState(null);
 
+  /**
+   * Efecto: Buscar y cargar el recibo cuando cambie el ID o la lista de recibos
+   */
   useEffect(() => {
     const foundReceipt = receipts.find(r => r.id === receiptId);
     setReceipt(foundReceipt);
   }, [receiptId, receipts]);
 
+  // Pantalla de carga mientras se busca el recibo
   if (!receipt) {
     return (
       <SafeAreaView style={styles.container}>
@@ -35,6 +53,9 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
     );
   }
 
+  /**
+   * Formatear fecha a formato legible en español
+   */
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-MX', { 
@@ -44,11 +65,16 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
     });
   };
 
+  /**
+   * Navegar a la pantalla de edición con los datos del recibo
+   */
   const handleEdit = () => {
-    // TODO: Implementar pantalla de edición
     navigation.navigate('ManualEntry', { receiptId: receipt.id, receipt });
   };
 
+  /**
+   * Eliminar recibo con confirmación
+   */
   const handleDelete = () => {
     Alert.alert(
       'Eliminar Recibo',
@@ -67,6 +93,9 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
     );
   };
 
+  /**
+   * Compartir o descargar la imagen del recibo
+   */
   const handleDownloadImage = async () => {
     if (receipt.imageUri) {
       try {
@@ -85,6 +114,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
     }
   };
 
+  // Extraer datos del recibo
   const products = receipt.products || [];
   const receiptType = receipt.type || 'Manual';
 
@@ -92,7 +122,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Header */}
+      {/* === Header === */}
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
@@ -106,7 +136,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Receipt Image */}
+        {/* === Tarjeta de Imagen === */}
         <View style={styles.imageCard}>
           <Text style={styles.sectionTitle}>Imagen del recibo</Text>
           <View style={styles.imageContainer}>
@@ -117,10 +147,12 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
                 resizeMode="contain"
               />
             ) : (
+              // Placeholder cuando no hay imagen
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="image-outline" size={48} color="#9CA3AF" />
               </View>
             )}
+            {/* Botón de descarga superpuesto */}
             <TouchableOpacity 
               style={styles.downloadButton}
               onPress={handleDownloadImage}
@@ -130,10 +162,11 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Information */}
+        {/* === Tarjeta de Información === */}
         <View style={styles.infoCard}>
           <View style={styles.infoHeader}>
             <Text style={styles.sectionTitle}>Información</Text>
+            {/* Badge del tipo de recibo */}
             <View style={[
               styles.typeBadge,
               receiptType === 'Factura' ? styles.facturaBadge : styles.manualBadge
@@ -142,6 +175,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Filas de información */}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Tienda</Text>
             <Text style={styles.infoValue}>{receipt.name}</Text>
@@ -176,16 +210,19 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Products */}
+        {/* === Tarjeta de Productos === */}
+        {/* Solo se muestra si hay productos */}
         {products.length > 0 && (
           <View style={styles.productsCard}>
             <Text style={styles.sectionTitle}>Productos</Text>
             <View style={styles.productsTable}>
+              {/* Encabezado de la tabla */}
               <View style={styles.tableHeader}>
                 <Text style={styles.tableHeaderText}>Cantidad</Text>
                 <Text style={styles.tableHeaderText}>Precio Unitario</Text>
                 <Text style={styles.tableHeaderText}>Precio</Text>
               </View>
+              {/* Filas de productos */}
               {products.map((product, index) => (
                 <View key={index} style={styles.tableRow}>
                   <Text style={styles.tableCell}>{product.quantity || 1}</Text>
@@ -197,6 +234,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
                   </Text>
                 </View>
               ))}
+              {/* Fila del total */}
               <View style={[styles.tableRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalAmount}>
@@ -207,8 +245,9 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Action Buttons */}
+        {/* === Botones de Acción === */}
         <View style={styles.actionsContainer}>
+          {/* Botón Editar */}
           <TouchableOpacity 
             style={styles.editButton}
             onPress={handleEdit}
@@ -217,6 +256,7 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
             <Text style={styles.editButtonText}>Editar</Text>
           </TouchableOpacity>
 
+          {/* Botón Eliminar */}
           <TouchableOpacity 
             style={styles.deleteButton}
             onPress={handleDelete}
@@ -232,6 +272,9 @@ export default function ReceiptDetailsScreen({ route, navigation }) {
   );
 }
 
+/**
+ * Estilos del componente ReceiptDetailsScreen
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -457,4 +500,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

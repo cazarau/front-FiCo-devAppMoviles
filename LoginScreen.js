@@ -1,3 +1,15 @@
+/**
+ * Pantalla de Inicio de Sesión
+ * 
+ * Componente que maneja la autenticación de usuarios con las siguientes características:
+ * - Validación de correo electrónico y contraseña
+ * - Funcionalidad de "Recordarme" para persistir credenciales
+ * - Opciones de visibilidad de contraseña
+ * - Manejo de errores con mensajes descriptivos
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -14,6 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 
 export default function LoginScreen() { 
+  // === Estados del componente ===
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -21,6 +34,12 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const navigation = useNavigation();
 
+  /**
+   * Efecto: Cargar credenciales guardadas al montar el componente
+   * 
+   * Se ejecuta una vez al inicializar la pantalla para recuperar
+   * las credenciales almacenadas si el usuario previamente seleccionó "Recordarme"
+   */
   useEffect(() => {
     const loadSavedCredentials = async () => {
       try {
@@ -28,6 +47,7 @@ export default function LoginScreen() {
         const savedPassword = await AsyncStorage.getItem('savedPassword');
         const savedRememberMe = await AsyncStorage.getItem('rememberMe');
         
+        // Restaurar credenciales solo si se guardaron previamente
         if (savedRememberMe === 'true' && savedEmail && savedPassword) {
           setEmail(savedEmail);
           setPassword(savedPassword);
@@ -41,18 +61,33 @@ export default function LoginScreen() {
     loadSavedCredentials();
   }, []);
 
+  /**
+   * Manejador de inicio de sesión
+   * 
+   * Realiza las siguientes validaciones antes de autenticar:
+   * 1. Verifica que el email no esté vacío
+   * 2. Verifica que la contraseña no esté vacía
+   * 3. Valida el formato del email mediante expresión regular
+   * 
+   * Si las validaciones pasan:
+   * - Guarda las credenciales si "Recordarme" está activado
+   * - Almacena el nombre de usuario (parte del email antes del @)
+   * - Navega al dashboard de gastos
+   */
   const handleLogin = async () => {
+    // Validación 1: Email no vacío
     if (!email.trim()) {
       setErrorMessage('Por favor ingrese su correo electrónico');
       return;
     }
 
+    // Validación 2: Contraseña no vacía
     if (!password) {
       setErrorMessage('Por favor ingrese su contraseña');
       return;
     }
 
-    // Validación básica de email
+    // Validación 3: Formato de email válido
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setErrorMessage('Por favor ingrese un correo electrónico válido');
@@ -60,18 +95,24 @@ export default function LoginScreen() {
     }
 
     try {
+      // Gestionar la opción "Recordarme"
       if (rememberMe) {
+        // Guardar credenciales para futuras sesiones
         await AsyncStorage.setItem('savedEmail', email);
         await AsyncStorage.setItem('savedPassword', password);
         await AsyncStorage.setItem('rememberMe', 'true');
       } else {
+        // Eliminar credenciales guardadas si la opción no está activada
         await AsyncStorage.removeItem('savedEmail');
         await AsyncStorage.removeItem('savedPassword');
         await AsyncStorage.removeItem('rememberMe');
       }
 
+      // Extraer nombre de usuario del email y guardarlo
       await AsyncStorage.setItem('username', email.split('@')[0]);
       console.log('Usuario autenticado:', email);
+      
+      // Navegar al dashboard reemplazando la pantalla actual
       navigation.replace('ExpenseDashboard');
     } catch (error) {
       console.log('Error al guardar datos:', error);
@@ -89,31 +130,36 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          {/* Logo FiCo */}
+          {/* === Logo de la aplicación FiCo === */}
           <View style={styles.logoContainer}>
+            {/* Icono de teléfono estilizado con pantalla de recibo */}
             <View style={styles.phoneIcon}>
               <View style={styles.phoneScreen}>
                 <Ionicons name="receipt-outline" size={24} color="#fff" />
               </View>
             </View>
+            {/* Marca de verificación en esquina del logo */}
             <View style={styles.checkmarkContainer}>
               <Ionicons name="checkmark-circle" size={24} color="#10B981" />
             </View>
             <Text style={styles.brandName}>FiCo</Text>
           </View>
 
+          {/* === Textos de bienvenida === */}
           <Text style={styles.welcomeText}>Bienvenido</Text>
           <Text style={styles.instructionText}>
             Ingrese los datos que se solicitan.
           </Text>
 
+          {/* === Mensaje de error === */}
+          {/* Solo se muestra si errorMessage tiene contenido */}
           {errorMessage ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
 
-          {/* Email Field */}
+          {/* === Campo de correo electrónico === */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Correo electrónico</Text>
             <View style={styles.inputWrapper}>
@@ -124,12 +170,13 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
-                  setErrorMessage('');
+                  setErrorMessage(''); // Limpiar error al escribir
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
               />
+              {/* Botón para limpiar el campo (solo visible cuando hay texto) */}
               {email.length > 0 && (
                 <TouchableOpacity 
                   onPress={() => setEmail('')}
@@ -141,7 +188,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Password Field */}
+          {/* === Campo de contraseña === */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Contraseña</Text>
             <View style={styles.inputWrapper}>
@@ -152,12 +199,13 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
-                  setErrorMessage('');
+                  setErrorMessage(''); // Limpiar error al escribir
                 }}
-                secureTextEntry={!showPassword}
+                secureTextEntry={!showPassword} // Alternar visibilidad
                 autoCapitalize="none"
                 autoComplete="password"
               />
+              {/* Botón para mostrar/ocultar contraseña */}
               <TouchableOpacity 
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeButton}
@@ -171,8 +219,9 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Remember Me and Forgot Password */}
+          {/* === Opciones: Recordarme y Olvidé mi contraseña === */}
           <View style={styles.optionsRow}>
+            {/* Checkbox "Recordarme" */}
             <TouchableOpacity 
               style={styles.checkboxRow}
               onPress={() => setRememberMe(!rememberMe)}
@@ -185,6 +234,7 @@ export default function LoginScreen() {
               <Text style={styles.checkboxLabel}>Recordarme</Text>
             </TouchableOpacity>
 
+            {/* Link "¿Olvidaste tu contraseña?" */}
             <TouchableOpacity onPress={() => {
               // TODO: Implementar pantalla de recuperación de contraseña
               console.log('Olvidé mi contraseña');
@@ -195,12 +245,12 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Login Button */}
+          {/* === Botón de inicio de sesión === */}
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
             <Text style={styles.loginButtonText}>Ingresar</Text>
           </TouchableOpacity>
 
-          {/* Register Link */}
+          {/* === Link para crear cuenta === */}
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>No tiene una cuenta? </Text>
             <TouchableOpacity onPress={() => {
@@ -216,7 +266,18 @@ export default function LoginScreen() {
   );
 }
 
+/**
+ * Estilos del componente LoginScreen
+ * 
+ * Organización de estilos:
+ * - Container y layout principal
+ * - Logo y branding
+ * - Campos de entrada
+ * - Botones y controles
+ * - Estados y variaciones
+ */
 const styles = StyleSheet.create({
+  // === Contenedores principales ===
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -239,6 +300,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  
+  // === Logo y branding ===
   logoContainer: {
     alignItems: 'center',
     marginBottom: 32,
@@ -274,6 +337,8 @@ const styles = StyleSheet.create({
     color: '#1E3A8A',
     marginTop: 12,
   },
+  
+  // === Textos informativos ===
   welcomeText: {
     fontSize: 32,
     fontWeight: '700',
@@ -287,6 +352,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: 'center',
   },
+  
+  // === Mensajes de error ===
   errorContainer: {
     backgroundColor: '#FEE2E2',
     padding: 12,
@@ -298,6 +365,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  
+  // === Campos de entrada ===
   inputContainer: {
     marginBottom: 20,
   },
@@ -329,6 +398,8 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 4,
   },
+  
+  // === Opciones adicionales ===
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -362,6 +433,8 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontWeight: '500',
   },
+  
+  // === Botones ===
   loginButton: {
     backgroundColor: '#3B82F6',
     borderRadius: 12,
@@ -374,6 +447,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  
+  // === Registro ===
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -1,3 +1,22 @@
+/**
+ * Pantalla Principal del Dashboard de Gastos
+ * 
+ * Este componente es la pantalla principal de la aplicación después del login.
+ * Muestra un resumen completo de los gastos del usuario incluyendo:
+ * - Total de gastos con cambio porcentual
+ * - Acciones rápidas (ver recibos, generar reportes, agregar gastos)
+ * - Promedio por recibo
+ * - Distribución de gastos por categoría
+ * - Lista de recibos recientes
+ * 
+ * Características:
+ * - Pull-to-refresh para actualizar datos
+ * - Navegación a todas las pantallas secundarias
+ * - Cierre de sesión
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,11 +35,17 @@ import { useExpense } from './ExpenseContext';
 
 export default function ExpenseDashboard({ navigation }) {
 
-  // ... 
+  // === Estados del componente ===
   const [username, setUsername] = useState('Usuario');
   const [refreshing, setRefreshing] = useState(false);
-  const [percentageChange] = useState(12.5); // Esto podría calcularse comparando con el mes anterior
+  
+  /**
+   * Porcentaje de cambio respecto al mes anterior
+   * TODO: Este valor es estático, debería calcularse comparando con datos históricos
+   */
+  const [percentageChange] = useState(12.5);
 
+  // Obtener datos y funciones del contexto global
   const {
     receipts,
     categories,
@@ -30,10 +55,19 @@ export default function ExpenseDashboard({ navigation }) {
     refreshReceipts
   } = useExpense();
 
+  /**
+   * Efecto: Cargar datos del usuario al montar el componente
+   */
   useEffect(() => {
     loadUserData();
   }, []);
 
+  /**
+   * Cargar nombre de usuario desde AsyncStorage
+   * 
+   * Recupera el username guardado en el login y actualiza el estado.
+   * Si no existe username, mantiene el valor por defecto 'Usuario'.
+   */
   const loadUserData = async () => {
     try {
       const storedUsername = await AsyncStorage.getItem('username');
@@ -45,12 +79,26 @@ export default function ExpenseDashboard({ navigation }) {
     }
   };
 
+  /**
+   * Manejador del pull-to-refresh
+   * 
+   * Actualiza los datos de recibos desde AsyncStorage cuando
+   * el usuario hace un gesto de "jalar hacia abajo" en la pantalla.
+   */
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshReceipts();
     setRefreshing(false);
   };
 
+  /**
+   * Manejador de cierre de sesión
+   * 
+   * Muestra un diálogo de confirmación antes de cerrar sesión.
+   * Si el usuario confirma:
+   * - Elimina el username de AsyncStorage
+   * - Navega a la pantalla de Login (replace para no poder volver)
+   */
   const handleLogout = async () => {
     Alert.alert(
       'Cerrar Sesión',
@@ -69,8 +117,21 @@ export default function ExpenseDashboard({ navigation }) {
     );
   };
 
+  // === Cálculos de datos para mostrar ===
+  
+  /**
+   * Obtener solo los 3 recibos más recientes para mostrar en el dashboard
+   */
   const recentReceipts = receipts.slice(0, 3);
+  
+  /**
+   * Total de gastos (suma de todos los montos)
+   */
   const totalExpenses = getTotalExpenses();
+  
+  /**
+   * Promedio de gasto por recibo
+   */
   const averagePerReceipt = getAveragePerReceipt();
 
   return (
@@ -82,9 +143,11 @@ export default function ExpenseDashboard({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
+        {/* === Header === */}
+        {/* Barra superior con logo, bienvenida y botones de usuario */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
+            {/* Logo de la aplicación (teléfono estilizado) */}
             <View style={styles.phoneIcon}>
               <View style={styles.phoneScreen}>
                 <View style={styles.phoneBar} />
@@ -95,9 +158,11 @@ export default function ExpenseDashboard({ navigation }) {
             <Text style={styles.welcomeText}>Bienvenido, {username}</Text>
           </View>
           <View style={styles.headerRight}>
+            {/* Botón de cerrar sesión */}
             <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={24} color="#666" />
             </TouchableOpacity>
+            {/* Avatar con inicial del usuario */}
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {username.charAt(0).toUpperCase()}
@@ -106,7 +171,8 @@ export default function ExpenseDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Total de gastos */}
+        {/* === Tarjeta de Total de Gastos === */}
+        {/* Muestra el monto total y el porcentaje de cambio */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Total de gastos</Text>
@@ -118,10 +184,12 @@ export default function ExpenseDashboard({ navigation }) {
           </Text>
         </View>
 
-        {/* Acciones */}
+        {/* === Tarjeta de Acciones === */}
+        {/* Botones de navegación a las funcionalidades principales */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Acciones</Text>
           
+          {/* Botón: Ver todos los recibos */}
           <TouchableOpacity 
             style={styles.actionButton} 
             onPress={() => navigation.navigate('AllReceipts')}
@@ -130,6 +198,7 @@ export default function ExpenseDashboard({ navigation }) {
             <Text style={styles.actionButtonText}>Ver todos los recibos</Text>
           </TouchableOpacity>
 
+          {/* Botón: Generar reporte */}
           <TouchableOpacity 
             style={styles.actionButton} 
             onPress={() => navigation.navigate('Report')}
@@ -138,6 +207,7 @@ export default function ExpenseDashboard({ navigation }) {
             <Text style={styles.actionButtonText}>Generar reporte</Text>
           </TouchableOpacity>
 
+          {/* Botón: Entrada manual (estilo destacado en verde) */}
           <TouchableOpacity 
             style={[styles.actionButton, styles.manualEntryButton]} 
             onPress={() => navigation.navigate('ManualEntry')}
@@ -148,6 +218,7 @@ export default function ExpenseDashboard({ navigation }) {
             </Text>
           </TouchableOpacity>
 
+          {/* Botón: Escanear ticket (estilo destacado en azul) */}
           <TouchableOpacity 
             style={[styles.actionButton, styles.scanButton]} 
             onPress={() => navigation.navigate('ScanTicket')}
@@ -159,7 +230,8 @@ export default function ExpenseDashboard({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Promedio por recibo */}
+        {/* === Tarjeta de Promedio por Recibo === */}
+        {/* Muestra el gasto promedio calculado */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.sectionTitle}>Promedio por recibo</Text>
@@ -171,7 +243,8 @@ export default function ExpenseDashboard({ navigation }) {
           <Text style={styles.subtitle}>Por compra</Text>
         </View>
 
-        {/* Gastos por categoría */}
+        {/* === Tarjeta de Gastos por Categoría === */}
+        {/* Lista de categorías con sus montos y porcentajes */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Gastos por categoría</Text>
           <Text style={styles.subtitle}>Tu distribución de gastos en el mes</Text>
@@ -179,10 +252,12 @@ export default function ExpenseDashboard({ navigation }) {
           <View style={styles.categoriesList}>
             {categories.map((category, index) => (
               <View key={index} style={styles.categoryItem}>
+                {/* Lado izquierdo: punto de color y nombre de categoría */}
                 <View style={styles.categoryLeft}>
                   <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
                   <Text style={styles.categoryName}>{category.name}</Text>
                 </View>
+                {/* Lado derecho: porcentaje y monto */}
                 <View style={styles.categoryRight}>
                   <Text style={styles.categoryPercentage}>{category.percentage}%</Text>
                   <Text style={styles.categoryAmount}>
@@ -194,11 +269,12 @@ export default function ExpenseDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Recibos recientes */}
+        {/* === Tarjeta de Recibos Recientes === */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Recibos recientes</Text>
           <Text style={styles.subtitle}>Los últimos recibos procesados</Text>
           
+          {/* Contador de tickets procesados este mes */}
           <View style={styles.ticketsCounter}>
             <Text style={styles.ticketsNumber}>{receipts.length}</Text>
             <View style={{ flex: 1 }}>
@@ -213,7 +289,10 @@ export default function ExpenseDashboard({ navigation }) {
             </View>
           </View>
 
+          {/* Contenido condicional: Estado vacío o lista de recibos */}
           {recentReceipts.length === 0 ? (
+            // === Estado Vacío ===
+            // Se muestra cuando no hay recibos registrados
             <View style={styles.emptyReceipts}>
               <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
               <Text style={styles.emptyText}>No hay recibos aún</Text>
@@ -225,16 +304,20 @@ export default function ExpenseDashboard({ navigation }) {
               </TouchableOpacity>
             </View>
           ) : (
+            // === Lista de Recibos Recientes ===
             <>
               {recentReceipts.map((receipt) => (
                 <View key={receipt.id} style={styles.receiptItem}>
+                  {/* Icono del recibo */}
                   <View style={styles.receiptIcon}>
                     <Ionicons name="document-text-outline" size={24} color="#666" />
                   </View>
+                  {/* Información del recibo */}
                   <View style={styles.receiptInfo}>
                     <Text style={styles.receiptName}>{receipt.name}</Text>
                     <Text style={styles.receiptCategory}>{receipt.category}</Text>
                   </View>
+                  {/* Monto y estado */}
                   <View style={styles.receiptRight}>
                     <Text style={styles.receiptAmount}>
                       ${receipt.amount.toFixed(2)}
@@ -246,6 +329,7 @@ export default function ExpenseDashboard({ navigation }) {
                 </View>
               ))}
 
+              {/* Botón para ver todos los recibos */}
               <TouchableOpacity 
                 style={styles.viewAllButton} 
                 onPress={() => navigation.navigate('AllReceipts')}
@@ -256,17 +340,33 @@ export default function ExpenseDashboard({ navigation }) {
           )}
         </View>
 
+        {/* Espaciado inferior */}
         <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/**
+ * Estilos del componente ExpenseDashboard
+ * 
+ * Organización:
+ * - Contenedores principales
+ * - Header y navegación
+ * - Tarjetas (cards)
+ * - Botones de acción
+ * - Categorías
+ * - Recibos
+ * - Estados y variaciones
+ */
 const styles = StyleSheet.create({
+  // === Contenedores principales ===
   container: {
     flex: 1,
     backgroundColor: '#E5E7EB',
   },
+  
+  // === Header ===
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -329,6 +429,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  
+  // === Tarjetas (Cards) ===
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -377,6 +479,8 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginBottom: 16,
   },
+  
+  // === Botones de acción ===
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -400,6 +504,8 @@ const styles = StyleSheet.create({
   whiteText: {
     color: '#fff',
   },
+  
+  // === Promedio ===
   averageAmount: {
     fontSize: 36,
     fontWeight: '700',
@@ -407,6 +513,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
+  
+  // === Categorías ===
   categoriesList: {
     gap: 16,
   },
@@ -448,6 +556,8 @@ const styles = StyleSheet.create({
     width: 80,
     textAlign: 'right',
   },
+  
+  // === Contador de tickets ===
   ticketsCounter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,6 +597,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
   },
+  
+  // === Estado vacío ===
   emptyReceipts: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -508,6 +620,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  
+  // === Items de recibo ===
   receiptItem: {
     flexDirection: 'row',
     alignItems: 'center',

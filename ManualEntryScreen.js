@@ -1,3 +1,18 @@
+/**
+ * Pantalla de Entrada Manual de Gastos
+ * 
+ * Este componente permite al usuario crear o editar gastos manualmente.
+ * Características principales:
+ * - Formulario completo para datos del recibo (comerciante, fecha, categoría, método de pago)
+ * - Gestión dinámica de productos (agregar/eliminar múltiples productos)
+ * - Cálculo automático del total basado en productos
+ * - Validación de campos obligatorios
+ * - Modales para selección de categoría y método de pago
+ * - Modo edición: permite actualizar recibos existentes
+ * 
+ * @component
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,19 +30,38 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpense } from './ExpenseContext';
 
 export default function ManualEntryScreen({ navigation, route }) {
+  // Obtener funciones del contexto global
   const { addReceipt, updateReceipt, receipts } = useExpense();
+  
+  /**
+   * Determinar si estamos en modo edición
+   * Si route.params contiene receiptId, estamos editando un recibo existente
+   */
   const isEditing = route?.params?.receiptId;
 
+  // === Estados del formulario ===
   const [merchant, setMerchant] = useState('');
   const [date, setDate] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('');
+  
+  /**
+   * Array de productos
+   * Cada producto tiene: name, price, quantity
+   * Se inicializa con un producto vacío por defecto
+   */
   const [products, setProducts] = useState([
     { name: '', price: 0, quantity: 1 }
   ]);
+  
+  // Estados para controlar la visibilidad de los modales
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  /**
+   * Categorías disponibles para clasificar gastos
+   * Estas deben coincidir con las categorías definidas en ExpenseContext
+   */
   const categories = [
     'Alimentos',
     'Transporte',
@@ -36,6 +70,9 @@ export default function ManualEntryScreen({ navigation, route }) {
     'Otros'
   ];
 
+  /**
+   * Métodos de pago disponibles
+   */
   const paymentMethods = [
     'Efectivo',
     'Tarjeta de crédito',
@@ -44,6 +81,12 @@ export default function ManualEntryScreen({ navigation, route }) {
     'Otro'
   ];
 
+  /**
+   * Efecto: Cargar datos del recibo si estamos en modo edición
+   * 
+   * Cuando se recibe un receiptId en los parámetros de navegación,
+   * se cargan todos los datos del recibo para pre-llenar el formulario.
+   */
   useEffect(() => {
     if (isEditing && route.params?.receipt) {
       const receipt = route.params.receipt;
@@ -55,6 +98,15 @@ export default function ManualEntryScreen({ navigation, route }) {
     }
   }, [isEditing, route.params]);
 
+  /**
+   * Formatear fecha de ISO a formato dd/mm/yyyy
+   * 
+   * Convierte la fecha almacenada en formato ISO (usado internamente)
+   * al formato esperado por el usuario en el input.
+   * 
+   * @param {string} dateString - Fecha en formato ISO
+   * @returns {string} Fecha en formato dd/mm/yyyy
+   */
   const formatDateInput = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -64,6 +116,14 @@ export default function ManualEntryScreen({ navigation, route }) {
     return `${day}/${month}/${year}`;
   };
 
+  /**
+   * Calcular el total del recibo
+   * 
+   * Suma el precio * cantidad de todos los productos.
+   * Maneja valores no numéricos convirtiéndolos a 0.
+   * 
+   * @returns {number} Total calculado
+   */
   const calculateTotal = () => {
     return products.reduce((sum, product) => {
       const price = parseFloat(product.price) || 0;
@@ -72,16 +132,40 @@ export default function ManualEntryScreen({ navigation, route }) {
     }, 0);
   };
 
+  /**
+   * Agregar un nuevo producto vacío a la lista
+   * 
+   * Permite al usuario agregar múltiples productos al recibo.
+   * El nuevo producto se inicializa con valores por defecto.
+   */
   const handleAddProduct = () => {
     setProducts([...products, { name: '', price: 0, quantity: 1 }]);
   };
 
+  /**
+   * Eliminar un producto de la lista
+   * 
+   * Remueve el producto en el índice especificado.
+   * No permite eliminar si solo hay un producto (mínimo requerido).
+   * 
+   * @param {number} index - Índice del producto a eliminar
+   */
   const handleRemoveProduct = (index) => {
     if (products.length > 1) {
       setProducts(products.filter((_, i) => i !== index));
     }
   };
 
+  /**
+   * Actualizar un campo específico de un producto
+   * 
+   * Permite actualizar name, price o quantity de un producto.
+   * Los valores numéricos se parsean automáticamente.
+   * 
+   * @param {number} index - Índice del producto a actualizar
+   * @param {string} field - Campo a actualizar ('name', 'price', 'quantity')
+   * @param {string|number} value - Nuevo valor
+   */
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...products];
     updatedProducts[index] = {
@@ -91,28 +175,47 @@ export default function ManualEntryScreen({ navigation, route }) {
     setProducts(updatedProducts);
   };
 
+  /**
+   * Guardar el recibo (crear o actualizar)
+   * 
+   * Valida todos los campos requeridos antes de guardar:
+   * 1. Nombre del comerciante no vacío
+   * 2. Fecha ingresada
+   * 3. Categoría seleccionada
+   * 4. Al menos un producto con nombre
+   * 5. Total mayor a 0
+   * 
+   * Si todas las validaciones pasan:
+   * - En modo edición: actualiza el recibo existente
+   * - En modo creación: agrega un nuevo recibo
+   */
   const handleSave = async () => {
+    // Validación 1: Nombre del comerciante
     if (!merchant.trim()) {
       Alert.alert('Error', 'Por favor ingrese el nombre del comerciante/empresa');
       return;
     }
 
+    // Validación 2: Fecha
     if (!date.trim()) {
       Alert.alert('Error', 'Por favor ingrese la fecha');
       return;
     }
 
+    // Validación 3: Categoría
     if (!selectedCategory) {
       Alert.alert('Error', 'Por favor seleccione una categoría');
       return;
     }
 
+    // Validación 4: Al menos un producto con nombre
     const validProducts = products.filter(p => p.name.trim());
     if (validProducts.length === 0) {
       Alert.alert('Error', 'Por favor ingrese al menos un producto');
       return;
     }
 
+    // Validación 5: Total mayor a 0
     const total = calculateTotal();
     if (total <= 0) {
       Alert.alert('Error', 'El monto total debe ser mayor a 0');
@@ -120,10 +223,11 @@ export default function ManualEntryScreen({ navigation, route }) {
     }
 
     try {
-      // Parse date
+      // Parsear fecha de formato dd/mm/yyyy a objeto Date
       const [day, month, year] = date.split('/');
       const receiptDate = new Date(year, month - 1, day);
 
+      // Construir objeto de datos del recibo
       const receiptData = {
         name: merchant.trim(),
         amount: total,
@@ -139,6 +243,7 @@ export default function ManualEntryScreen({ navigation, route }) {
         status: 'Procesado'
       };
 
+      // Guardar según el modo (edición o creación)
       if (isEditing) {
         await updateReceipt(route.params.receiptId, receiptData);
         Alert.alert('Éxito', 'Recibo actualizado correctamente', [
@@ -165,11 +270,11 @@ export default function ManualEntryScreen({ navigation, route }) {
         <View style={styles.content}>
           <Text style={styles.mainTitle}>Añadir gasto manualmente</Text>
 
-          {/* Basic Information */}
+          {/* === Sección: Información Básica === */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Informacion Basica</Text>
 
-            {/* Merchant/Company */}
+            {/* Campo: Comerciante/Empresa */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Comerciante/Empresa <Text style={styles.required}>*</Text>
@@ -183,7 +288,7 @@ export default function ManualEntryScreen({ navigation, route }) {
               />
             </View>
 
-            {/* Date */}
+            {/* Campo: Fecha */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Fecha <Text style={styles.required}>*</Text>
@@ -200,7 +305,7 @@ export default function ManualEntryScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Category */}
+            {/* Campo: Categoría (con modal) */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Categoria <Text style={styles.required}>*</Text>
@@ -219,7 +324,7 @@ export default function ManualEntryScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            {/* Payment Method */}
+            {/* Campo: Método de Pago (opcional, con modal) */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Metodo de pago (Opcional)
@@ -239,12 +344,14 @@ export default function ManualEntryScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Products */}
+          {/* === Sección: Productos === */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Productos</Text>
             
+            {/* Lista dinámica de productos */}
             {products.map((product, index) => (
               <View key={index} style={styles.productRow}>
+                {/* Nombre del producto */}
                 <View style={styles.productNameContainer}>
                   <Text style={styles.productLabel}>Nombre del producto</Text>
                   <TextInput
@@ -256,6 +363,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                   />
                 </View>
 
+                {/* Precio */}
                 <View style={styles.productPriceContainer}>
                   <Text style={styles.productLabel}>Precio</Text>
                   <TextInput
@@ -268,6 +376,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                   />
                 </View>
 
+                {/* Cantidad */}
                 <View style={styles.productQuantityContainer}>
                   <Text style={styles.productLabel}>Cant.</Text>
                   <TextInput
@@ -280,6 +389,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                   />
                 </View>
 
+                {/* Botón para eliminar producto */}
                 <TouchableOpacity
                   style={styles.deleteProductButton}
                   onPress={() => handleRemoveProduct(index)}
@@ -289,6 +399,7 @@ export default function ManualEntryScreen({ navigation, route }) {
               </View>
             ))}
 
+            {/* Botón para agregar más productos */}
             <TouchableOpacity
               style={styles.addProductButton}
               onPress={handleAddProduct}
@@ -298,13 +409,14 @@ export default function ManualEntryScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
 
-          {/* Total Calculation */}
+          {/* === Sección: Cálculo Total === */}
+          {/* Muestra el total calculado en tiempo real */}
           <View style={styles.totalSection}>
             <Text style={styles.totalLabel}>Calculo Total:</Text>
             <Text style={styles.totalAmount}>${calculateTotal().toFixed(2)}</Text>
           </View>
 
-          {/* Save Button */}
+          {/* === Botón de Guardar === */}
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
             <Ionicons name="save-outline" size={20} color="#fff" />
             <Text style={styles.saveButtonText}>Guardar</Text>
@@ -312,7 +424,8 @@ export default function ManualEntryScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Category Modal */}
+      {/* === Modal de Selección de Categoría === */}
+      {/* Modal tipo bottom sheet para seleccionar categoría */}
       <Modal
         visible={showCategoryModal}
         transparent={true}
@@ -343,7 +456,8 @@ export default function ManualEntryScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      {/* Payment Method Modal */}
+      {/* === Modal de Selección de Método de Pago === */}
+      {/* Modal tipo bottom sheet para seleccionar método de pago */}
       <Modal
         visible={showPaymentModal}
         transparent={true}
@@ -377,7 +491,19 @@ export default function ManualEntryScreen({ navigation, route }) {
   );
 }
 
+/**
+ * Estilos del componente ManualEntryScreen
+ * 
+ * Organización:
+ * - Contenedores principales
+ * - Secciones del formulario
+ * - Campos de entrada
+ * - Productos
+ * - Modales
+ * - Botones
+ */
 const styles = StyleSheet.create({
+  // === Contenedores principales ===
   container: {
     flex: 1,
     backgroundColor: '#E5E7EB',
@@ -394,6 +520,8 @@ const styles = StyleSheet.create({
     color: '#111',
     marginBottom: 24,
   },
+  
+  // === Secciones ===
   section: {
     backgroundColor: '#fff',
     padding: 20,
@@ -406,6 +534,8 @@ const styles = StyleSheet.create({
     color: '#111',
     marginBottom: 16,
   },
+  
+  // === Campos de entrada ===
   inputGroup: {
     marginBottom: 20,
   },
@@ -416,7 +546,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   required: {
-    color: '#DC2626',
+    color: '#DC2626', // Asterisco rojo para campos obligatorios
   },
   input: {
     backgroundColor: '#F9FAFB',
@@ -460,6 +590,8 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#9CA3AF',
   },
+  
+  // === Productos ===
   productRow: {
     flexDirection: 'row',
     gap: 12,
@@ -467,13 +599,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   productNameContainer: {
-    flex: 2,
+    flex: 2, // Ocupa más espacio para el nombre
   },
   productPriceContainer: {
     flex: 1,
   },
   productQuantityContainer: {
-    flex: 0.8,
+    flex: 0.8, // Menos espacio para cantidad
   },
   productLabel: {
     fontSize: 12,
@@ -513,7 +645,7 @@ const styles = StyleSheet.create({
   deleteProductButton: {
     padding: 12,
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 20, // Alineado con los inputs
   },
   addProductButton: {
     flexDirection: 'row',
@@ -529,6 +661,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  
+  // === Total ===
   totalSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -548,6 +682,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
   },
+  
+  // === Botón guardar ===
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -562,17 +698,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  
+  // === Modales ===
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)', // Fondo oscuro semi-transparente
+    justifyContent: 'flex-end', // Bottom sheet style
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '50%',
+    maxHeight: '50%', // Máximo 50% de la pantalla
   },
   modalHeader: {
     flexDirection: 'row',
